@@ -1,0 +1,348 @@
+<html lang="en" dir="ltr">
+
+<head>
+  <meta charset="utf-8" />
+  <title>Web App</title>
+  <link type="text/css" rel="stylesheet" href="https://unpkg.com/bootstrap/dist/css/bootstrap.min.css" />
+  <link type="text/css" rel="stylesheet" href="https://unpkg.com/bootstrap-vue@latest/dist/bootstrap-vue.css" />
+  <script src="https://cdn.jsdelivr.net/npm/vue@2.5.16/dist/vue.js"></script>
+  <script src="https://unpkg.com/babel-polyfill@latest/dist/polyfill.min.js"></script>
+  <script src="https://unpkg.com/bootstrap-vue@latest/dist/bootstrap-vue.js"></script>
+  <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+</head>
+
+<body>
+  <div class="container" id="items">
+      <b-card no-body>
+        <!-- Used tabs to integrate all the pages in singlw web page -->
+        <b-tabs pills card  content-class="d-flex">
+          <!-- Tab to show the rendered items from api call -->
+          <b-tab title="Items" title-item-class="mr-2 p-2" >
+            <b-card>
+              <h5>Names of Countries</h5>
+              <div class="p-2 bg-image hover-overlay" style="cursor: pointer; margin: 15px 0" v-if="!show_desc"
+                v-for="item in list">
+                <b-card @click="show_description(item)">
+                  <h5>{{item.name}}</h5>
+                </b-card>
+              </div>
+              <!-- On each item click opens this div to show its details -->
+              <div v-if="show_desc">
+                <p>
+                  <strong>Name:<small>{{description_block.name}}</small></strong>
+                </p>
+                <p>
+                  <strong>Capital City:<small>{{description_block.capital}}</small></strong>
+                </p>
+                <p>
+                  <strong>Currency:<small>{{description_block.currencies[0]}}</small></strong>
+                </p>
+                <p>
+                  <strong>Languages:<small>{{description_block.languages[0]}}</small></strong>
+                </p>
+                <p>
+                  <strong>population:<small>{{description_block.population}}</small></strong>
+                </p>
+                <b-button @click="go_back()" class="bg-primary">Go Back</b-button>
+              </div>
+            </b-card>
+            <!--  -->
+          </b-tab>
+          <!-- Tab to show the images list -->
+          <b-tab title="Images"  @click="show_images_tab"
+            title-item-class="mr-auto p-2">
+            <b-card>
+              <h5>Images List</h5>
+              <!-- Search images based on its name -->
+              <div class="d-flex justify-content-end">
+                <form class="form-inline">
+                  <input class="form-control mr-sm-2" type="search" v-model="image_search" @keyup="search_images()"
+                    placeholder="Search" aria-label="Search" />
+                </form>
+              </div>
+              <div class="p-2" v-for="item in search_list ">
+                <b-card>
+                  <p><strong>{{item.name}}</strong></p>
+                  <div class="d-flex justify-content-left">
+                    <img :src="item.image_url" class="img-fluid hover-shadow" style="height: 200px; width: 200px"
+                      alt="" />
+                  </div>
+                </b-card>
+              </div>
+              <div class="p-2" v-if="search_list.length==0">
+                <b-card> No items found </b-card>
+              </div>
+            </b-card>
+            <!--  -->
+          </b-tab>
+          <!-- Sign up page for the user to enter their details -->
+          <b-tab title="signup"  @click="show_form()" title-item-class="p-2">
+            <b-card   v-if="show_sign">
+              <div class="w-full max-w-xs mx-auto">
+                <h3>Sign up for Web App</h3>
+                <form>
+                  <div class="form-group">
+                    <label for="name1">Name</label>
+                    <input type="text" class="form-control" v-model="name" id="name1"
+                      placeholder="Please fill your name" required />
+                  </div>
+                  <div class="form-group">
+                    <label for="phonenumber">Phont Number</label>
+                    <input type="number" class="form-control" v-model="phn_nmbr" id="phonenumber"
+                      placeholder="Please fill your phone number" required />
+                  </div>
+                  <div class="form-group">
+                    <label for="email1">Email</label>
+                    <input type="email" @keyup="validate_email()" class="form-control" v-model="email" id="email1"
+                      placeholder="Please fill your Email Id" required />
+                      <small style="color:red" v-if="email!='' && validate_email()">Please enter valid email</small>
+                  </div>
+                  <div class="form-group">
+                    <label for="address1">Address</label>
+                    <textarea type="textarea" class="form-control" v-model="address" id="address1"
+                      placeholder="Please fill your address"></textarea>
+                  </div>
+                </form>
+                <b-button id="s-btn" @click="submit_form()" class="bg-primary" type="submit">Submit</b-button>
+              </div>
+            </b-card>
+            <!-- After successful submission  -->
+            <b-card v-if="!show_sign">
+              <div class="d-flex justify-content-center">
+                You have successfully signed up!
+              </div>
+              
+            </b-card>
+<!--  -->
+          </b-tab>
+          <!-- Tab to show user profile that is persist in local storage -->
+          <b-tab title="Profile"  @click="show_user_profile()" title-item-class="p-2">
+            <b-card v-if="user_profile==''"><div class="d-flex justify-content-center">Sign up to see your profile</div></b-card>
+             
+            <b-card v-else>
+              <p>
+                <strong>Name: <small>{{user_profile.name}}</small></strong>
+              </p>
+              <p v-if="!inline_edit_email">
+                <strong>Email:
+                  <small @click="toggle_edit('email')">{{user_profile.email}}</small></strong>
+              </p>
+              <p v-if="inline_edit_email">
+                <strong>Email:
+                  <input type="text" :value="user_profile.email" @keyup.enter="on_enter" @blur="on_enter"
+                    style="border: none" class="w-150 font-weight-300" /></strong>
+              </p>
+              <p v-if="!inline_edit">
+                <strong>Phone Number:
+                  <small @click="toggle_edit()">{{user_profile.phn_nmbr}}</small></strong>
+              </p>
+              <p v-if="inline_edit">
+                <strong>Phone Number:
+                  <input type="number" :value="user_profile.phn_nmbr" @keyup.enter="on_enter" @blur="on_enter"
+                    style="border: none" class="w-150 font-weight-300" /></strong>
+              </p>
+              <p>
+                <strong>Address: <small>{{user_profile.address}}</small></strong>
+              </p>
+            </b-card>
+          </b-tab>
+        </b-tabs>
+      </b-card>
+    
+  </div>
+</body>
+<script>
+  var app = new Vue({
+    el: "#items",
+
+    data() {
+      return {
+        list: [],
+        show_desc: false,
+        description_block: {},
+        tabIndex: 0,
+        name: "",
+        phn_nmbr: "",
+        email: "",
+        address: "",
+        show_sign:true,
+        user_profile: "",
+        inline_edit: false,
+        inline_edit_email: false,
+        images_list: [],
+        search_list: [],
+      
+        image_search: ""
+      };
+    },
+    /*
+    * In the first tab showing list of items that are rendered from api call so it is in mounted
+    */
+    mounted: function () {
+      let query =
+        "?q=san francisco us&lat=35&lon=139&cnt=10&units=metric or imperial";
+      fetch("https://restcountries-v1.p.rapidapi.com/all", {
+        method: "GET",
+        headers: {
+          "x-rapidapi-key":
+            "24b941a5f8msh99639498002effap11615ajsnc350b497d221",
+          "x-rapidapi-host": "restcountries-v1.p.rapidapi.com",
+          useQueryString: true,
+        },
+      })
+        .then((response) => {
+          return response.json();
+        })
+        .then((data) => {
+          console.log(data);
+          this.list = data;
+          /*
+          * Setting the response in local storage
+          */
+          localStorage.setItem("resopnse_data", JSON.stringify(data));
+        });
+    },
+    methods: {
+      /*
+      * To show the success response in ui
+      */
+      show_form:function(){
+        this.show_sign=true;
+      },
+      /*
+      * Validation for email in the signup form
+      */
+      validate_email:function(){
+        if (/^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)*$/.test(this.email)){
+          return false
+        }
+        else{
+          return true
+        }
+      },
+      /**
+       * From api did not get any image url so kept dummy json to show them in tab
+       */
+      show_images_tab: function () {
+        this.images_list = [
+          {
+            description: "Lady with a red umbrella",
+            image_url:
+              "https://image.shutterstock.com/image-photo/open-red-umbrella-isolated-on-260nw-209408119.jpg",
+            name: "umbrella",
+          },
+          {
+            description: "Flowers and some fruits",
+            image_url:
+              "https://previews.123rf.com/images/serezniy/serezniy1406/serezniy140600850/28784580-composition-with-beautiful-flowers-in-wicker-basket-and-fruits-on-bright-background.jpg",
+            name: "fruits",
+          },
+          {
+            description: "Beautiful scenery",
+            image_url:
+              "https://i.pinimg.com/originals/cc/18/8c/cc188c604e58cffd36e1d183c7198d21.jpg",
+            name: "scenery",
+          },
+          {
+            description: "Some kind of bird",
+            image_url:
+              "https://static.scientificamerican.com/sciam/cache/file/7A715AD8-449D-4B5A-ABA2C5D92D9B5A21_source.png",
+            name: "bird",
+          },
+          {
+            description: "The attack of dragons",
+            image_url:
+              "https://cdn.mos.cms.futurecdn.net/rZgUH5JiEpSxCve2RPK3T3.jpg",
+            name: "dragons",
+          },
+        ];
+        // this is used for searching images in tab
+        this.search_list = this.images_list;
+      },
+      /**
+       * To show the edit area for email and phone number field
+       */
+      toggle_edit: function (item) {
+        if (item === "email") {
+          this.inline_edit_email = !this.inline_edit_email;
+        } else {
+          this.inline_edit = !this.inline_edit;
+        }
+      },
+      on_enter: function (value) {
+        /**
+         * On update of email or phone number it saves them in local storage
+         */ 
+        if (this.user_profile.email !== value.target.value && value.target.value != "" && this.inline_edit_email) {
+          this.user_profile.email = value.target.value;
+          this.inline_edit_email = !this.inline_edit_email;
+        } else if (
+          this.user_profile.phn_nmbr !== value.target.value &&
+          value.target.value != ""
+        ) {
+          this.user_profile.phn_nmbr = value.target.value;
+          this.inline_edit = !this.inline_edit;
+        } else {
+        }
+        localStorage.setItem(
+          "user_details",
+          JSON.stringify(this.user_profile)
+        );
+      },
+      /**
+       * Shows the description of each item in countries list
+       */ 
+      show_description: function (item) {
+        console.log("test");
+        this.description_block = item;
+        this.show_desc = true;
+        // window.location.href="file:///home/sumalatha/rr-llp/tes.html";
+      },
+      /**
+       * Search images based on their name
+      */
+      search_images: function () {
+        this.search_list = this.images_list.filter((item) => {
+          return (
+            item.name
+              .toLowerCase()
+              .indexOf(this.image_search.toLowerCase()) !== -1
+          );
+        });
+        console.log(this.search_list);
+      },
+      /**
+       * Go back route back to countries page
+      */
+      go_back: function () {
+        this.show_desc = false;
+      },
+      /**
+       * Stores the details filled in submit form to localstorage
+      */
+      submit_form: function () {
+        alert("Your details are successfully stored in local storage!!");
+        let form_details = {
+          name: this.name,
+          phn_nmbr: this.phn_nmbr,
+          email: this.email,
+          address: this.address,
+        };
+        localStorage.setItem("user_details", JSON.stringify(form_details));
+        this.name = "";
+        this.email = "";
+        this.address = "";
+        this.phn_nmbr = "";
+        this.show_sign=false;
+      },
+      /**
+       * Shows the user profile  tab
+      */
+      show_user_profile: function () {
+        this.user_profile = JSON.parse(localStorage.getItem("user_details"));
+      },
+    },
+  });
+</script>
+
+</html>
